@@ -18,6 +18,9 @@ namespace LightestNight.System.Data.MySql.Tests
                 .Without(o => o.UserId)
                 .Without(o => o.Password)
                 .Without(o => o.Database)
+                .Without(o => o.Pooling)
+                .Without(o => o.MinimumPoolSize)
+                .Without(o => o.MaximumPoolSize)
                 .Do(o =>
                 {
                     o.Server = Environment.GetEnvironmentVariable("MYSQL_SERVER") ?? "localhost";
@@ -25,6 +28,9 @@ namespace LightestNight.System.Data.MySql.Tests
                     o.UserId = Environment.GetEnvironmentVariable("MYSQL_USERID") ?? "mysql";
                     o.Password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "mysql";
                     o.Database = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "mysql";
+                    o.Pooling = false;
+                    o.MinimumPoolSize = 1;
+                    o.MaximumPoolSize = 1;
                 })
                 .Create();
 
