@@ -55,7 +55,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Package
-        run: dotnet pack -c Release -o ./packages -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersion }} --no-build
+        run: dotnet pack -c Release -o ./packages -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersion }}
       - name: Store nuget package as artifact
         uses: actions/upload-artifact@v2
         with:
