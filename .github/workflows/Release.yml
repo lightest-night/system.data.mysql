@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build, run tests and package artifacts
+    name: Build and test
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -44,6 +44,15 @@ jobs:
         run: dotnet test -c Release --no-build --filter Category!=Integration
       - name: Integration Test
         run: dotnet test -c Release --no-build --filter Category=Integration
+  
+  package:
+    name: Package ready for deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Package
         run: dotnet pack -c Release -o ./packages -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersion }} --no-build
       - name: Store nuget package as artifact
@@ -54,7 +63,7 @@ jobs:
 
   deploy:
     name: Deploy to Nuget
-    needs: build
+    needs: package
     runs-on: ubuntu-latest
     steps:
       - name: Download package from build

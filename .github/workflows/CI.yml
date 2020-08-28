@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Build, run tests and package artifacts
+    name: Build and test
     runs-on: ubuntu-latest
     services:
       mysql:
