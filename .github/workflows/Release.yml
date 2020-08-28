@@ -26,6 +26,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    outputs:
+      packageVersion: ${{ steps.gitversion.outputs.nuGetVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -55,7 +57,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Package
-        run: dotnet pack -c Release -o ./packages -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersion }}
+        run: dotnet pack -c Release -o ./packages -p:PackageVersion=${{ needs.build.outputs.packageVersion }}
       - name: Store nuget package as artifact
         uses: actions/upload-artifact@v2
         with:
