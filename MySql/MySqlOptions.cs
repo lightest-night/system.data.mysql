@@ -55,7 +55,7 @@ namespace LightestNight.System.Data.MySql
 
 		public bool AllowPublicKeyRetrieval { get; set; }
 
-		public bool AllowUserVariables { get; set; }
+		public bool AllowUserVariables { get; set; } = true;
 
 		public bool AllowZeroDateTime { get; set; }
 
