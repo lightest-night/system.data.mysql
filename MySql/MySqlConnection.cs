@@ -44,6 +44,27 @@ namespace LightestNight.System.Data.MySql
 	               throw new InvalidOperationException("An error occurred building an instance of MySqlConnection");
         }
         
+        public bool ValidateConnection(IDbConnection connection, out MySqlException? exception)
+        {
+	        try
+	        {
+		        connection.Open();
+	        }
+	        catch (MySqlException ex)
+	        {
+		        exception = ex;
+		        return false;
+	        }
+	        finally
+	        {
+		        if (connection.State == ConnectionState.Open)
+			        connection.Close();
+	        }
+
+	        exception = null;
+	        return true;
+        }
+        
         private MySqlConnector.MySqlConnection Build()
         {
 	        var options = _optionsFactory();
@@ -102,27 +123,6 @@ namespace LightestNight.System.Data.MySql
             };
             
             return new MySqlConnector.MySqlConnection(builder.ConnectionString);
-        }
-
-        private static bool ValidateConnection(IDbConnection connection, out MySqlException? exception)
-        {
-	        try
-	        {
-		        connection.Open();
-	        }
-	        catch (MySqlException ex)
-	        {
-		        exception = ex;
-		        return false;
-	        }
-	        finally
-	        {
-		        if (connection.State == ConnectionState.Open)
-			        connection.Close();
-	        }
-
-	        exception = null;
-	        return true;
         }
     }
 }

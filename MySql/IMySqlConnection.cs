@@ -1,4 +1,7 @@
-﻿namespace LightestNight.System.Data.MySql
+﻿using System.Data;
+using MySqlConnector;
+
+namespace LightestNight.System.Data.MySql
 {
     public interface IMySqlConnection
     {
@@ -8,5 +11,13 @@
         /// <param name="retries">How many times to retry getting the connection</param>
         /// <returns>A ready to use, but closed, <see cref="MySqlConnector.MySqlConnection" /></returns>
         MySqlConnector.MySqlConnection GetConnection(int retries = 3);
+
+        /// <summary>
+        /// Validates that the connection to the db is currently valid
+        /// </summary>
+        /// <param name="connection">The <see cref="IDbConnection" /> to test</param>
+        /// <param name="exception">Any exceptions that are thrown when validating</param>
+        /// <returns>Boolean denoting whether the connection is valid</returns>
+        bool ValidateConnection(IDbConnection connection, out MySqlException? exception);
     }
 }
