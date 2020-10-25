@@ -10,8 +10,6 @@ namespace LightestNight.System.Data.MySql
 	public class MySqlConnection : IMySqlConnection
     {
 	    private readonly MySqlOptionsFactory _optionsFactory;
-
-	    private MySqlConnector.MySqlConnection? _connection;
 	    
         public MySqlConnection(MySqlOptionsFactory optionsFactory)
         {
@@ -20,9 +18,6 @@ namespace LightestNight.System.Data.MySql
         
         public MySqlConnector.MySqlConnection GetConnection(int retries = 3)
         {
-	        if (_connection != null && ValidateConnection(_connection, out _))
-		        return _connection;
-
 	        var maxDelay = TimeSpan.FromSeconds(10);
 	        var delay = Backoff.DecorrelatedJitterBackoffV2(TimeSpan.FromMilliseconds(500), retries)
 		        .Select(s => TimeSpan.FromTicks(Math.Min(s.Ticks, maxDelay.Ticks)));
@@ -30,18 +25,15 @@ namespace LightestNight.System.Data.MySql
 		        .Handle<MySqlException>()
 		        .WaitAndRetry(delay);
 		       
-	        retryPolicy.Execute(() =>
+	        return retryPolicy.Execute(() =>
 	        {
 		        var connection = Build();
 		        ValidateConnection(connection, out var mySqlException);
 		        if (mySqlException != null)
 			        throw mySqlException;
 
-		        _connection = connection;
+		        return connection;
 	        });
-
-	        return _connection ??
-	               throw new InvalidOperationException("An error occurred building an instance of MySqlConnection");
         }
         
         public bool ValidateConnection(IDbConnection connection, out MySqlException? exception)
