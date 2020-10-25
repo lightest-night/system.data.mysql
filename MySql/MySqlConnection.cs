@@ -1,74 +1,128 @@
 ﻿using System;
+using System.Data;
+using System.Linq;
 using MySqlConnector;
+using Polly;
+using Polly.Contrib.WaitAndRetry;
 
 namespace LightestNight.System.Data.MySql
 {
-    public class MySqlConnection : IMySqlConnection
+	public class MySqlConnection : IMySqlConnection
     {
-        private readonly MySqlOptions _options;
+	    private readonly MySqlOptionsFactory _optionsFactory;
 
-        public MySqlConnection(MySqlOptions options)
+	    private MySqlConnector.MySqlConnection? _connection;
+	    
+        public MySqlConnection(MySqlOptionsFactory optionsFactory)
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _optionsFactory = optionsFactory ?? throw new ArgumentNullException(nameof(optionsFactory));
         }
-
-        /// <inheritdoc cref="IMySqlConnection.Build" />
-        public MySqlConnector.MySqlConnection Build()
+        
+        public MySqlConnector.MySqlConnection GetConnection(int retries = 3)
         {
+	        if (_connection != null && ValidateConnection(_connection, out _))
+		        return _connection;
+
+	        var maxDelay = TimeSpan.FromSeconds(10);
+	        var delay = Backoff.DecorrelatedJitterBackoffV2(TimeSpan.FromMilliseconds(500), retries)
+		        .Select(s => TimeSpan.FromTicks(Math.Min(s.Ticks, maxDelay.Ticks)));
+	        var retryPolicy = Policy
+		        .Handle<MySqlException>()
+		        .WaitAndRetry(delay);
+		       
+	        retryPolicy.Execute(() =>
+	        {
+		        var connection = Build();
+		        ValidateConnection(connection, out var mySqlException);
+		        if (mySqlException != null)
+			        throw mySqlException;
+
+		        _connection = connection;
+	        });
+
+	        return _connection ??
+	               throw new InvalidOperationException("An error occurred building an instance of MySqlConnection");
+        }
+        
+        private MySqlConnector.MySqlConnection Build()
+        {
+	        var options = _optionsFactory();
+	        
             var builder = new MySqlConnectionStringBuilder
             {
-                Server = _options.Server,
-				Port = _options.Port,
-				UserID = _options.UserId,
-				Password = _options.Password,
-				Database = _options.Database,
-				LoadBalance = _options.LoadBalance,
-				ConnectionProtocol = _options.ConnectionProtocol,
-				PipeName = _options.PipeName,
-				SslMode = _options.SslMode,
-				CertificateFile = _options.CertificateFile,
-				CertificatePassword = _options.CertificatePassword,
-				SslCert = _options.SslCert,
-				SslKey = _options.SslKey,
-				SslCa = _options.SslCa,
-				CertificateStoreLocation = _options.CertificateStoreLocation,
-				CertificateThumbprint = _options.CertificateThumbprint,
-				Pooling = _options.Pooling,
-				ConnectionLifeTime = _options.ConnectionLifeTime,
-				ConnectionReset = _options.ConnectionReset,
-				ConnectionIdlePingTime = _options.ConnectionIdlePingTime,
-				ConnectionIdleTimeout = _options.ConnectionIdleTimeout,
-				MinimumPoolSize = _options.MinimumPoolSize,
-				MaximumPoolSize = _options.MaximumPoolSize,
-				AllowLoadLocalInfile = _options.AllowLoadLocalInfile,
-				AllowPublicKeyRetrieval = _options.AllowPublicKeyRetrieval,
-				AllowUserVariables = _options.AllowUserVariables,
-				AllowZeroDateTime = _options.AllowZeroDateTime,
-				ApplicationName = _options.ApplicationName,
-				AutoEnlist = _options.AutoEnlist,
-				CharacterSet = _options.CharacterSet,
-				ConnectionTimeout = _options.ConnectionTimeout,
-				ConvertZeroDateTime = _options.ConvertZeroDateTime,
-				DateTimeKind = _options.DateTimeKind,
-				DefaultCommandTimeout = _options.DefaultCommandTimeout,
-				ForceSynchronous = _options.ForceSynchronous,
-				GuidFormat = _options.GuidFormat,
-				IgnoreCommandTransaction = _options.IgnoreCommandTransaction,
-				IgnorePrepare = _options.IgnorePrepare,
-				InteractiveSession = _options.InteractiveSession,
-				Keepalive = _options.Keepalive,
-				NoBackslashEscapes = _options.NoBackslashEscapes,
-				OldGuids = _options.OldGuids,
-				PersistSecurityInfo = _options.PersistSecurityInfo,
-				ServerRsaPublicKeyFile = _options.ServerRsaPublicKeyFile,
-				ServerSPN = _options.ServerSpn,
-				TreatTinyAsBoolean = _options.TreatTinyAsBoolean,
-				UseAffectedRows = _options.UseAffectedRows,
-				UseCompression = _options.UseCompression,
-				UseXaTransactions = _options.UseXaTransactions
+                Server = options.Server,
+				Port = options.Port,
+				UserID = options.UserId,
+				Password = options.Password,
+				Database = options.Database,
+				LoadBalance = options.LoadBalance,
+				ConnectionProtocol = options.ConnectionProtocol,
+				PipeName = options.PipeName,
+				SslMode = options.SslMode,
+				CertificateFile = options.CertificateFile,
+				CertificatePassword = options.CertificatePassword,
+				SslCert = options.SslCert,
+				SslKey = options.SslKey,
+				SslCa = options.SslCa,
+				CertificateStoreLocation = options.CertificateStoreLocation,
+				CertificateThumbprint = options.CertificateThumbprint,
+				Pooling = options.Pooling,
+				ConnectionLifeTime = options.ConnectionLifeTime,
+				ConnectionReset = options.ConnectionReset,
+				ConnectionIdlePingTime = options.ConnectionIdlePingTime,
+				ConnectionIdleTimeout = options.ConnectionIdleTimeout,
+				MinimumPoolSize = options.MinimumPoolSize,
+				MaximumPoolSize = options.MaximumPoolSize,
+				AllowLoadLocalInfile = options.AllowLoadLocalInfile,
+				AllowPublicKeyRetrieval = options.AllowPublicKeyRetrieval,
+				AllowUserVariables = options.AllowUserVariables,
+				AllowZeroDateTime = options.AllowZeroDateTime,
+				ApplicationName = options.ApplicationName,
+				AutoEnlist = options.AutoEnlist,
+				CharacterSet = options.CharacterSet,
+				ConnectionTimeout = options.ConnectionTimeout,
+				ConvertZeroDateTime = options.ConvertZeroDateTime,
+				DateTimeKind = options.DateTimeKind,
+				DefaultCommandTimeout = options.DefaultCommandTimeout,
+				ForceSynchronous = options.ForceSynchronous,
+				GuidFormat = options.GuidFormat,
+				IgnoreCommandTransaction = options.IgnoreCommandTransaction,
+				IgnorePrepare = options.IgnorePrepare,
+				InteractiveSession = options.InteractiveSession,
+				Keepalive = options.Keepalive,
+				NoBackslashEscapes = options.NoBackslashEscapes,
+				OldGuids = options.OldGuids,
+				PersistSecurityInfo = options.PersistSecurityInfo,
+				ServerRsaPublicKeyFile = options.ServerRsaPublicKeyFile,
+				ServerSPN = options.ServerSpn,
+				TreatTinyAsBoolean = options.TreatTinyAsBoolean,
+				UseAffectedRows = options.UseAffectedRows,
+				UseCompression = options.UseCompression,
+				UseXaTransactions = options.UseXaTransactions
             };
             
             return new MySqlConnector.MySqlConnection(builder.ConnectionString);
+        }
+
+        private static bool ValidateConnection(IDbConnection connection, out MySqlException? exception)
+        {
+	        try
+	        {
+		        connection.Open();
+	        }
+	        catch (MySqlException ex)
+	        {
+		        exception = ex;
+		        return false;
+	        }
+	        finally
+	        {
+		        if (connection.State == ConnectionState.Open)
+			        connection.Close();
+	        }
+
+	        exception = null;
+	        return true;
         }
     }
 }

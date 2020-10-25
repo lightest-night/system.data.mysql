@@ -1,5 +1,6 @@
 ﻿using System;
 using AutoFixture;
+using MySqlConnector;
 using Shouldly;
 using Xunit;
 
@@ -7,12 +8,13 @@ namespace LightestNight.System.Data.MySql.Tests
 {
     public class MySqlConnectionTests
     {
+        private readonly Fixture _fixture;
         private readonly IMySqlConnection _sut;
 
         public MySqlConnectionTests()
         {
-            var fixture = new Fixture();
-            var options = fixture.Build<MySqlOptions>()
+            _fixture = new Fixture();
+            var options = _fixture.Build<MySqlOptions>()
                 .Without(o => o.Server)
                 .Without(o => o.Port)
                 .Without(o => o.UserId)
@@ -34,14 +36,14 @@ namespace LightestNight.System.Data.MySql.Tests
                 })
                 .Create();
 
-            _sut = new MySqlConnection(options);
+            _sut = new MySqlConnection(() => options);
         }
 
         [Fact, Trait("Category", "Unit")]
         public void ShouldBuildNewConnection()
         {
             // Act
-            var result = _sut.Build();
+            var result = _sut.GetConnection();
             
             // Assert
             result.ConnectionString.ShouldNotBeNullOrEmpty();
@@ -52,10 +54,21 @@ namespace LightestNight.System.Data.MySql.Tests
         public void ShouldConnectSuccessfully()
         {
             // Act
-            using var result = _sut.Build();
+            using var result = _sut.GetConnection();
             
             // Assert
             Should.NotThrow(() => result.Open());
+        }
+        
+        [Fact, Trait("Category", "Unit")]
+        public void ShouldErrorWhenConnectionFails()
+        {
+            // Arrange
+            var options = _fixture.Create<MySqlOptions>();
+            var sut = new MySqlConnection(() => options);
+            
+            // Act
+            Should.Throw<MySqlException>(() => sut.GetConnection());
         }
     }
 }
