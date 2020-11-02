@@ -73,6 +73,20 @@ namespace LightestNight.System.Data.MySql.Tests
             // Assert
             initialConnection.ShouldBe(result);
         }
+
+        [Fact, Trait("Category", "Unit")]
+        public void ShouldNullifyWhenDisposed()
+        {
+            // Arrange
+            var connection = _sut.GetConnection();
+            _sut.ConnectionExists().ShouldBeTrue();
+            
+            // Act
+            connection.Dispose();
+            
+            // Assert
+            _sut.ConnectionExists().ShouldBeFalse();
+        }
         
         [Fact, Trait("Category", "Unit")]
         public void ShouldErrorWhenConnectionFails()

@@ -69,6 +69,9 @@ namespace LightestNight.System.Data.MySql
 	        exception = null;
 	        return true;
         }
+
+        public bool ConnectionExists() 
+	        => _connection != null;
         
         private MySqlConnector.MySqlConnection Build()
         {
@@ -127,7 +130,13 @@ namespace LightestNight.System.Data.MySql
 				UseXaTransactions = options.UseXaTransactions
             };
             
-            return new MySqlConnector.MySqlConnection(builder.ConnectionString);
+            var connection = new MySqlConnector.MySqlConnection(builder.ConnectionString);
+            connection.Disposed += (sender, args) =>
+            {
+	            _connection = null;
+            };
+
+            return connection;
         }
     }
 }
