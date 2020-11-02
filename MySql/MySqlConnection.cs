@@ -48,7 +48,9 @@ namespace LightestNight.System.Data.MySql
         {
 	        try
 	        {
-		        if (connection.State == ConnectionState.Closed || connection.State == ConnectionState.Broken)
+		        if ((connection.State == ConnectionState.Closed || 
+		            connection.State == ConnectionState.Broken) &&
+		            connection.State != ConnectionState.Connecting)
 			        connection.Open();
 
 		        if (connection.State == ConnectionState.Broken)
