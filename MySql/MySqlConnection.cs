@@ -37,10 +37,12 @@ namespace LightestNight.System.Data.MySql
 
 		        _connection = Build();
 		        ValidateConnection(_connection, out var exception);
-		        if (exception != null)
-			        throw exception;
-
-		        return _connection;
+		        
+		        if (exception == null) 
+			        return _connection;
+		        
+		        _connection = null;
+		        throw exception;
 	        });
         }
         
