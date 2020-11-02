@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using Polly;
 using Polly.Contrib.WaitAndRetry;
@@ -10,10 +11,14 @@ namespace LightestNight.System.Data.MySql
 	public class MySqlConnection : IMySqlConnection
     {
 	    private readonly MySqlOptionsFactory _optionsFactory;
+	    private readonly ILogger<MySqlConnection> _logger;
+
+	    private MySqlConnector.MySqlConnection? _connection;
 	    
-        public MySqlConnection(MySqlOptionsFactory optionsFactory)
+        public MySqlConnection(MySqlOptionsFactory optionsFactory, ILogger<MySqlConnection> logger)
         {
             _optionsFactory = optionsFactory ?? throw new ArgumentNullException(nameof(optionsFactory));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
         
         public MySqlConnector.MySqlConnection GetConnection(int retries = 3)
@@ -22,29 +27,37 @@ namespace LightestNight.System.Data.MySql
 	        var delay = Backoff.DecorrelatedJitterBackoffV2(TimeSpan.FromMilliseconds(500), retries)
 		        .Select(s => TimeSpan.FromTicks(Math.Min(s.Ticks, maxDelay.Ticks)));
 	        var retryPolicy = Policy
-		        .Handle<MySqlException>()
+		        .Handle<Exception>()
 		        .WaitAndRetry(delay);
 		       
 	        return retryPolicy.Execute(() =>
 	        {
-		        var connection = Build();
-		        ValidateConnection(connection, out var mySqlException);
-		        if (mySqlException != null)
-			        throw mySqlException;
+		        if (_connection != null && ValidateConnection(_connection, out _))
+			        return _connection;
 
-		        return connection;
+		        _connection = Build();
+		        ValidateConnection(_connection, out var exception);
+		        if (exception != null)
+			        throw exception;
+
+		        return _connection;
 	        });
         }
         
-        public bool ValidateConnection(IDbConnection connection, out MySqlException? exception)
+        public bool ValidateConnection(IDbConnection connection, out Exception? exception)
         {
 	        try
 	        {
-		        connection.Open();
+		        if (connection.State == ConnectionState.Closed || connection.State == ConnectionState.Broken)
+			        connection.Open();
+
+		        if (connection.State == ConnectionState.Broken)
+			        throw new InvalidOperationException("MySql Connection is broken");
 	        }
-	        catch (MySqlException ex)
+	        catch (Exception ex)
 	        {
 		        exception = ex;
+		        _logger.LogError(ex, "An exception occurred validating a connection to the MySql Database");
 		        return false;
 	        }
 	        finally

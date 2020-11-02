@@ -1,5 +1,5 @@
-﻿using System.Data;
-using MySqlConnector;
+﻿using System;
+using System.Data;
 
 namespace LightestNight.System.Data.MySql
 {
@@ -18,6 +18,6 @@ namespace LightestNight.System.Data.MySql
         /// <param name="connection">The <see cref="IDbConnection" /> to test</param>
         /// <param name="exception">Any exceptions that are thrown when validating</param>
         /// <returns>Boolean denoting whether the connection is valid</returns>
-        bool ValidateConnection(IDbConnection connection, out MySqlException? exception);
+        bool ValidateConnection(IDbConnection connection, out Exception? exception);
     }
 }

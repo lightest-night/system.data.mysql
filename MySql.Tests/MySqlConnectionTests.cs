@@ -1,5 +1,6 @@
 ﻿using System;
 using AutoFixture;
+using Microsoft.Extensions.Logging.Abstractions;
 using MySqlConnector;
 using Shouldly;
 using Xunit;
@@ -36,7 +37,7 @@ namespace LightestNight.System.Data.MySql.Tests
                 })
                 .Create();
 
-            _sut = new MySqlConnection(() => options);
+            _sut = new MySqlConnection(() => options, NullLogger<MySqlConnection>.Instance);
         }
 
         [Fact, Trait("Category", "Unit")]
@@ -60,12 +61,25 @@ namespace LightestNight.System.Data.MySql.Tests
             Should.NotThrow(() => result.Open());
         }
         
+        [Fact, Trait("Category", "Integration")]
+        public void ShouldReuseConnection()
+        {
+            // Arrange
+            using var initialConnection = _sut.GetConnection();
+            
+            // Act
+            using var result = _sut.GetConnection();
+            
+            // Assert
+            initialConnection.ShouldBe(result);
+        }
+        
         [Fact, Trait("Category", "Unit")]
         public void ShouldErrorWhenConnectionFails()
         {
             // Arrange
             var options = _fixture.Create<MySqlOptions>();
-            var sut = new MySqlConnection(() => options);
+            var sut = new MySqlConnection(() => options, NullLogger<MySqlConnection>.Instance);
             
             // Act
             Should.Throw<MySqlException>(() => sut.GetConnection());
