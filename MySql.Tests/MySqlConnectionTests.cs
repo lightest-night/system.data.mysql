@@ -60,34 +60,20 @@ namespace LightestNight.System.Data.MySql.Tests
             // Assert
             Should.NotThrow(() => result.Open());
         }
-        
+
         [Fact, Trait("Category", "Integration")]
-        public void ShouldReuseConnection()
+        public void ShouldValidateConnection()
         {
             // Arrange
-            using var initialConnection = _sut.GetConnection();
+            using var connection = _sut.GetConnection();
             
             // Act
-            using var result = _sut.GetConnection();
+            var result = _sut.ValidateConnection(connection, out _);
             
             // Assert
-            initialConnection.ShouldBe(result);
+            result.ShouldBeTrue();
         }
 
-        [Fact, Trait("Category", "Unit")]
-        public void ShouldNullifyWhenDisposed()
-        {
-            // Arrange
-            var connection = _sut.GetConnection();
-            _sut.ConnectionExists().ShouldBeTrue();
-            
-            // Act
-            connection.Dispose();
-            
-            // Assert
-            _sut.ConnectionExists().ShouldBeFalse();
-        }
-        
         [Fact, Trait("Category", "Unit")]
         public void ShouldErrorWhenConnectionFails()
         {

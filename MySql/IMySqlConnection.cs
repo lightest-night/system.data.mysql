@@ -19,11 +19,5 @@ namespace LightestNight.System.Data.MySql
         /// <param name="exception">Any exceptions that are thrown when validating</param>
         /// <returns>Boolean denoting whether the connection is valid</returns>
         bool ValidateConnection(IDbConnection connection, out Exception? exception);
-
-        /// <summary>
-        /// Returns whether or not there is an existing connection
-        /// </summary>
-        /// <returns>Boolean</returns>
-        bool ConnectionExists();
     }
 }

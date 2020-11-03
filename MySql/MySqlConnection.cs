@@ -13,9 +13,7 @@ namespace LightestNight.System.Data.MySql
 	    private readonly MySqlOptionsFactory _optionsFactory;
 	    private readonly ILogger<MySqlConnection> _logger;
 
-	    private MySqlConnector.MySqlConnection? _connection;
-	    
-        public MySqlConnection(MySqlOptionsFactory optionsFactory, ILogger<MySqlConnection> logger)
+	    public MySqlConnection(MySqlOptionsFactory optionsFactory, ILogger<MySqlConnection> logger)
         {
             _optionsFactory = optionsFactory ?? throw new ArgumentNullException(nameof(optionsFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -27,21 +25,17 @@ namespace LightestNight.System.Data.MySql
 	        var delay = Backoff.DecorrelatedJitterBackoffV2(TimeSpan.FromMilliseconds(500), retries)
 		        .Select(s => TimeSpan.FromTicks(Math.Min(s.Ticks, maxDelay.Ticks)));
 	        var retryPolicy = Policy
-		        .Handle<Exception>()
+		        .Handle<MySqlException>()
 		        .WaitAndRetry(delay);
 		       
 	        return retryPolicy.Execute(() =>
 	        {
-		        if (_connection != null && ValidateConnection(_connection, out _))
-			        return _connection;
-
-		        _connection = Build();
-		        ValidateConnection(_connection, out var exception);
+		        var connection = Build();
+		        ValidateConnection(connection, out var exception);
 		        
 		        if (exception == null) 
-			        return _connection;
+			        return connection;
 		        
-		        _connection = null;
 		        throw exception;
 	        });
         }
@@ -50,18 +44,24 @@ namespace LightestNight.System.Data.MySql
         {
 	        try
 	        {
-		        if ((connection.State == ConnectionState.Closed || 
-		            connection.State == ConnectionState.Broken) &&
+		        if ((connection.State == ConnectionState.Closed ||
+		             connection.State == ConnectionState.Broken) &&
 		            connection.State != ConnectionState.Connecting)
 			        connection.Open();
 
 		        if (connection.State == ConnectionState.Broken)
 			        throw new InvalidOperationException("MySql Connection is broken");
 	        }
-	        catch (Exception ex)
+	        catch (MySqlException ex)
 	        {
 		        exception = ex;
-		        _logger.LogError(ex, "An exception occurred validating a connection to the MySql Database");
+		        _logger.LogError(ex, "A MySql exception occurred validating a connection to the MySql Database");
+		        return false;
+	        }
+	        catch (Exception ex)
+	        {
+		        exception = null;
+		        _logger.LogDebug(ex, "An exception occurred validating a connection to the MySql Database. Validation Failed");
 		        return false;
 	        }
 	        finally
@@ -74,11 +74,9 @@ namespace LightestNight.System.Data.MySql
 	        return true;
         }
 
-        public bool ConnectionExists() 
-	        => _connection != null;
-        
         private MySqlConnector.MySqlConnection Build()
         {
+	        _logger.LogDebug("Building a new MySql Connection");
 	        var options = _optionsFactory();
 	        
             var builder = new MySqlConnectionStringBuilder
@@ -134,13 +132,7 @@ namespace LightestNight.System.Data.MySql
 				UseXaTransactions = options.UseXaTransactions
             };
             
-            var connection = new MySqlConnector.MySqlConnection(builder.ConnectionString);
-            connection.Disposed += (sender, args) =>
-            {
-	            _connection = null;
-            };
-
-            return connection;
+            return new MySqlConnector.MySqlConnection(builder.ConnectionString);
         }
     }
 }
